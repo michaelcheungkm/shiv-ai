@@ -114,6 +114,12 @@ For production, run behind nginx with SSL.
 
 ---
 
+## Custom Voices
+
+https://drive.google.com/drive/folders/1u-aHNn6k2TDZegBv0qwOG7a3WYabbrYP?usp=drive_link
+
+Add the entire custom_voices folder from the drive into the folder.
+
 ## Performance Notes
 
 - First synthesis may take 1–2 seconds as the model warms up
