@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Send</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #111; --surface: #1a1a1a; --border: #2a2a2a;
+    --text: #eee; --muted: #666; --accent: #7c6af7;
+    --success: #4af0a0; --warn: #f0a04a;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    min-height: 100dvh; display: flex; flex-direction: column;
+    padding: 16px; gap: 12px;
+  }
+  .topbar { display: flex; align-items: center; justify-content: space-between; }
+  .title { font-weight: 700; font-size: 18px; }
+  .pill { font-size: 12px; color: var(--muted); border: 1px solid var(--border); border-radius: 99px; padding: 3px 10px; }
+  .pill.on { color: var(--success); border-color: var(--success); }
+  .row { display: flex; gap: 8px; }
+  input[type=text] {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 15px; padding: 10px 12px; outline: none;
+  }
+  input[type=text]:focus { border-color: var(--accent); }
+  textarea {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 16px; line-height: 1.5;
+    padding: 12px; resize: none; outline: none; min-height: 100px;
+  }
+  textarea:focus { border-color: var(--accent); }
+  .voices { display: flex; flex-wrap: wrap; gap: 6px; }
+  .voice {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--muted); font-size: 13px;
+    padding: 6px 10px; cursor: pointer; user-select: none;
+  }
+  .voice.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn {
+    background: var(--accent); border: none; border-radius: 8px; color: #fff;
+    font-size: 16px; font-weight: 600; padding: 14px; cursor: pointer; width: 100%;
+    transition: opacity 0.15s;
+  }
+  .btn:active { opacity: 0.75; }
+  .btn:disabled { opacity: 0.35; cursor: default; }
+  .btn-sm {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 14px; padding: 10px 14px; cursor: pointer; white-space: nowrap;
+  }
+  .btn-sm:active { opacity: 0.7; }
+  .tabs { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .tab { flex: 1; background: none; border: none; color: var(--muted); font-size: 14px; padding: 10px; cursor: pointer; }
+  .tab.sel { background: var(--accent); color: #fff; }
+  #batch-list { display: flex; flex-direction: column; gap: 6px; }
+  .bitem {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; display: flex; align-items: flex-start; gap: 10px; font-size: 14px;
+  }
+  .bitem-body { flex: 1; min-width: 0; }
+  .bitem-voice { font-size: 11px; color: var(--accent); margin-bottom: 2px; }
+  .bitem-text { color: var(--text); word-break: break-word; }
+  .bitem-del { background: none; border: none; color: var(--muted); font-size: 20px; line-height: 1; padding: 0 2px; cursor: pointer; flex-shrink: 0; }
+  .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 16px; }
+  .label { font-size: 12px; color: var(--muted); }
+  #log { display: flex; flex-direction: column; gap: 4px; }
+  .litem {
+    background: var(--surface); border-radius: 6px; padding: 8px 10px;
+    font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: baseline;
+  }
+  .litem-voice { color: var(--accent); flex-shrink: 0; font-size: 11px; }
+  .litem-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .litem-rx { color: var(--success); flex-shrink: 0; font-size: 11px; }
+  hr { border: none; border-top: 1px solid var(--border); }
+  #toast {
+    position: fixed; bottom: 20px; left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    background: #222; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 18px; font-size: 14px; color: var(--success);
+    transition: transform 0.25s; z-index: 99; white-space: nowrap; pointer-events: none;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.err { color: var(--warn); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">TTScast · Send</div>
+  <div class="pill" id="pill">● offline</div>
+</div>
+
+<div class="row">
+  <input type="text" id="server" value="http://localhost:8000" placeholder="http://server:8000">
+  <button class="btn-sm" onclick="loadVoices()">Connect</button>
+</div>
+
+<div class="voices" id="voices"><span class="empty" style="padding:4px 0">—</span></div>
+
+<hr>
+
+<div class="tabs">
+  <button class="tab sel" id="t-single" onclick="setMode('single')">Single</button>
+  <button class="tab"     id="t-batch"  onclick="setMode('batch')">Batch</button>
+</div>
+
+<textarea id="msg" placeholder="Type a message…" rows="4"></textarea>
+<button class="btn" id="send-btn" onclick="doSend()">▶ Speak</button>
+
+<div id="batch-extras" style="display:none; flex-direction:column; gap:10px;">
+  <button class="btn-sm" onclick="addToBatch()">+ Add to queue</button>
+  <div id="batch-list"><div class="empty">Queue empty</div></div>
+  <div class="row">
+    <button class="btn" id="batch-send-btn" onclick="sendBatch()">▶ Send all</button>
+    <button class="btn-sm" onclick="clearBatch()">Clear</button>
+  </div>
+</div>
+
+<hr>
+
+<div class="label">Sent</div>
+<div id="log"><div class="empty">Nothing sent yet</div></div>
+
+<div id="toast"></div>
+
+<script>
+let voice = null, voices = {}, mode = 'single', batch = [];
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function url() { return $('server').value.replace(/\/$/, ''); }
+
+async function loadVoices() {
+  try {
+    voices = await (await fetch(url() + '/voices')).json();
+    renderVoices(); checkStatus();
+  } catch { toast('Cannot reach server', true); }
+}
+
+function renderVoices() {
+  const el = $('voices'); el.innerHTML = '';
+  for (const [id, label] of Object.entries(voices)) {
+    const name = label.replace(/\s*\(.*\)/, '');
+    const b = document.createElement('button');
+    b.className = 'voice' + (id === voice ? ' sel' : '');
+    b.textContent = name;
+    b.onclick = () => { voice = id; el.querySelectorAll('.voice').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); };
+    el.appendChild(b);
+  }
+  if (!voice && Object.keys(voices).length) el.querySelector('.voice')?.click();
+}
+
+async function checkStatus() {
+  try {
+    const d = await (await fetch(url() + '/status')).json();
+    $('pill').textContent = `● ${d.receivers} rx`; $('pill').className = 'pill on';
+  } catch { $('pill').textContent = '● offline'; $('pill').className = 'pill'; }
+}
+
+function setMode(m) {
+  mode = m;
+  $('t-single').className = 'tab' + (m === 'single' ? ' sel' : '');
+  $('t-batch').className  = 'tab' + (m === 'batch'  ? ' sel' : '');
+  $('send-btn').style.display     = m === 'single' ? '' : 'none';
+  $('batch-extras').style.display = m === 'batch'  ? 'flex' : 'none';
+}
+
+async function doSend() {
+  const text = $('msg').value.trim();
+  if (!text) { toast('Enter a message', true); return; }
+  if (!voice) { toast('Select a voice', true); return; }
+  const btn = $('send-btn'); btn.disabled = true; btn.textContent = '⏳…';
+  try {
+    const d = await (await fetch(url() + '/speak', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ text, voice })
+    })).json();
+    toast(`✓ ${d.receivers} receiver(s)`); addLog(voice, text, d.receivers); $('msg').value = ''; checkStatus();
+  } catch { toast('Server error', true); }
+  finally { btn.disabled = false; btn.textContent = '▶ Speak'; }
+}
+
+function addToBatch() {
+  const text = $('msg').value.trim();
+  if (!text) { toast('Enter a message', true); return; }
+  if (!voice) { toast('Select a voice', true); return; }
+  batch.push({ text, voice }); $('msg').value = ''; renderBatch();
+}
+
+function removeBatch(i) { batch.splice(i, 1); renderBatch(); }
+function clearBatch()   { batch = []; renderBatch(); }
+
+function renderBatch() {
+  const el = $('batch-list');
+  if (!batch.length) { el.innerHTML = '<div class="empty">Queue empty</div>'; return; }
+  el.innerHTML = '';
+  batch.forEach(({ text, voice: v }, i) => {
+    const name = (voices[v] || v).replace(/\s*\(.*\)/, '');
+    const d = document.createElement('div'); d.className = 'bitem';
+    d.innerHTML = `<div class="bitem-body"><div class="bitem-voice">${esc(name)}</div><div class="bitem-text">${esc(text)}</div></div><button class="bitem-del" onclick="removeBatch(${i})">×</button>`;
+    el.appendChild(d);
+  });
+}
+
+async function sendBatch() {
+  if (!batch.length) { toast('Queue is empty', true); return; }
+  const btn = $('batch-send-btn'); btn.disabled = true; btn.textContent = '⏳…';
+  try {
+    const d = await (await fetch(url() + '/speak_batch', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ messages: batch })
+    })).json();
+    toast(`✓ ${d.sent}/${d.total} sent`);
+    batch.forEach(({ text, voice: v }) => addLog(v, text, d.receivers));
+    batch = []; renderBatch(); checkStatus();
+  } catch { toast('Server error', true); }
+  finally { btn.disabled = false; btn.textContent = '▶ Send all'; }
+}
+
+function addLog(v, text, rx) {
+  const el = $('log'); el.querySelector('.empty')?.remove();
+  const d = document.createElement('div'); d.className = 'litem';
+  const name = (voices[v] || v).replace(/\s*\(.*\)/, '');
+  d.innerHTML = `<span class="litem-voice">${esc(name)}</span><span class="litem-text">${esc(text)}</span><span class="litem-rx">${rx}rx</span>`;
+  el.prepend(d);
+  if (el.children.length > 20) el.lastChild.remove();
+}
+
+let tt;
+function toast(msg, err = false) {
+  const el = $('toast'); el.textContent = msg;
+  el.className = 'show' + (err ? ' err' : '');
+  clearTimeout(tt); tt = setTimeout(() => el.className = '', 2500);
+}
+
+$('msg').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') mode === 'batch' ? addToBatch() : doSend();
+});
+
+setMode('single'); loadVoices(); setInterval(checkStatus, 6000);
+</script>
+</body>
+</html>
